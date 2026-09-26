@@ -34,28 +34,9 @@ jobs:
         run: |
           just bst --version
           podman run --rm --privileged --device /dev/fuse registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d bash -c 'which buildbox-run buildbox-casd buildbox-fuse; buildbox-run --version; buildbox-casd --version; ls -l /dev/fuse; cat /proc/mounts'
-      - name: Probe runtime-files.bst build sandbox
-        run: |
-          cat > /tmp/probe.sh <<'PROBE'
-          set -x
-          pwd; id
-          cat /proc/mounts
-          ls -la /buildstream-build
-          ls -ld / /buildstream-build /buildstream-install /tmp 2>&1
-          stat -f /buildstream-build
-          touch /buildstream-build/probe-touch && echo TOUCH_OK
-          echo hi > testpage.pdf && echo REDIRECT_OK; rm -f testpage.pdf
-          mkdir /buildstream-build/probe-dir && echo MKDIR_OK
-          gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=testpage.pdf testpage.ps && echo GS_SAFER_OK
-          gs -q -dNOSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=testpage2.pdf testpage.ps && echo GS_NOSAFER_OK
-          gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=/tmp/t.pdf testpage.ps && echo GS_TMP_OK
-          ls -la /buildstream-build /tmp
-          env | sort
-          PROBE
-          cp /tmp/probe.sh ./probe.sh
-          just bst --network-retries 5 build --deps build printer-app/runtime-files.bst printer-app/application.bst
-          just bst shell --build printer-app/runtime-files.bst -- sh /src/probe.sh
-      - name: Probe application.bst build sandbox (control)
+      - name: Build runtime-files.bst with in-sandbox probe
+        run: just bst --network-retries 5 build printer-app/runtime-files.bst
+      - name: Show probe build log
         if: always()
         run: |
-          just bst shell --build printer-app/application.bst -- sh -c 'set -x; pwd; cat /proc/mounts; ls -ld /buildstream-build; touch /buildstream-build/probe && echo TOUCH_OK; gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=testpage.pdf testpage.ps && echo GS_SAFER_OK'
+          for f in $(sudo find ~/.cache/buildstream/logs -path '*runtime-files*' -name '*-build.*.log'); do echo "##### $f"; sudo cat "$f"; done
