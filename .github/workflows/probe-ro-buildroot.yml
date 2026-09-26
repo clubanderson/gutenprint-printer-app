@@ -8,7 +8,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-26.04, ubuntu-24.04]
+        runner: [ubuntu-26.04]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     permissions:
@@ -34,7 +34,13 @@ jobs:
         run: |
           just bst --version
           podman run --rm --privileged --device /dev/fuse registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d bash -c 'which buildbox-run buildbox-casd buildbox-fuse; buildbox-run --version; buildbox-casd --version; ls -l /dev/fuse; cat /proc/mounts'
-      - name: Build runtime-files.bst with in-sandbox probe
+      - name: Unload the AppArmor gs profile (Ubuntu 26.04 ships /etc/apparmor.d/gs)
+        run: |
+          if [ -f /etc/apparmor.d/gs ]; then
+            sudo apparmor_parser -R /etc/apparmor.d/gs
+          fi
+          sudo aa-status | grep -w gs || echo "gs profile not loaded"
+      - name: Build runtime-files.bst (unmodified element) with the profile unloaded
         run: just bst --network-retries 5 build printer-app/runtime-files.bst
       - name: Show probe build log
         if: always()
