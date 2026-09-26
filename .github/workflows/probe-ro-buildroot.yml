@@ -53,7 +53,8 @@ jobs:
           env | sort
           PROBE
           cp /tmp/probe.sh ./probe.sh
-          just bst shell --build printer-app/runtime-files.bst -- sh /src/probe.sh || just bst shell --build printer-app/runtime-files.bst -- sh -c "$(cat /tmp/probe.sh)"
+          just bst --network-retries 5 build --deps build printer-app/runtime-files.bst printer-app/application.bst
+          just bst shell --build printer-app/runtime-files.bst -- sh /src/probe.sh
       - name: Probe application.bst build sandbox (control)
         if: always()
         run: |
