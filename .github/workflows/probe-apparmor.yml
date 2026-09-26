@@ -1,0 +1,28 @@
+name: Probe AppArmor profiles (fsdk-containers#332)
+on:
+  workflow_dispatch:
+permissions: {}
+jobs:
+  aa:
+    name: apparmor (${{ matrix.runner }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-26.04, ubuntu-24.04]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    steps:
+      - name: AppArmor facts
+        run: |
+          uname -r
+          dpkg -l apparmor apparmor-profiles 2>/dev/null | tail -n +6 || true
+          echo "--- ghostscript profiles"; grep -ril ghostscript /etc/apparmor.d 2>/dev/null || echo none
+          ls /etc/apparmor.d | grep -i "gs\|ghost" || true
+          echo "--- aa-status"; sudo aa-status 2>&1 | head -80
+          echo "--- restrict userns"; sysctl kernel.apparmor_restrict_unprivileged_userns kernel.apparmor_restrict_unprivileged_unconfined 2>&1
+          echo "--- profile in container (podman --privileged)"
+          sudo apt-get install -y --no-install-recommends podman >/dev/null 2>&1 || true
+          podman run --rm --privileged registry.gitlab.com/freedesktop-sdk/infrastructure/freedesktop-sdk-docker-images/bst2:64eb0b4930d57a92710822898fb73af6cc1ae35d bash -c 'cat /proc/self/attr/current; cat /proc/self/attr/apparmor/current 2>/dev/null; echo; which gs || true'
+      - name: Dump ghostscript profile
+        if: always()
+        run: for f in $(grep -ril ghostscript /etc/apparmor.d 2>/dev/null); do echo "##### $f"; cat "$f"; done
