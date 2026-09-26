@@ -9,6 +9,7 @@ sources:
     path: testpage.ps
 build-depends:
   - fsdk-containers.bst:freedesktop-sdk.bst:public-stacks/runtime-gnu.bst
+  - fsdk-containers.bst:freedesktop-sdk.bst:components/strace.bst
   - fsdk-containers.bst:printing/base.bst
 
 config:
@@ -29,6 +30,18 @@ config:
       gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=/tmp/probe-tmp.pdf testpage.ps && echo GS_TMP_OK
       gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile="$PWD/probe-abs.pdf" testpage.ps && echo GS_ABS_OK
       echo "--- ls -la . /tmp"; ls -la . /tmp
+      echo "--- caps"; grep Cap /proc/self/status; cat /proc/self/uid_map /proc/self/gid_map
+      echo "--- gs binary"; ls -la /usr/bin/gs; readlink -f /usr/bin/gs; file "$(readlink -f /usr/bin/gs)" || true
+      cat testpage.ps > /dev/null && echo CAT_OK
+      cp testpage.ps copy.ps && echo CP_OK
+      sh -c ': <> probe-rdwr' && echo SH_RDWR_CREATE_OK
+      sh -c ': <> testpage.ps' && echo SH_RDWR_EXISTING_OK
+      sh -c ': < testpage.ps' && echo SH_RDONLY_OK
+      cp testpage.ps /tmp/testpage.ps && gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=/tmp/o.pdf /tmp/testpage.ps && echo GS_ALL_TMP_OK
+      gs -q -dNOSAFER -dBATCH -dNOPAUSE -sDEVICE=nullpage testpage.ps && echo GS_NULL_READ_OK
+      echo "--- strace gs read"; strace -f -e trace=%file,%desc -o /tmp/st-read.txt gs -q -dNOSAFER -dBATCH -dNOPAUSE -sDEVICE=nullpage testpage.ps; grep -n "testpage\|EACCES\|EPERM\|EROFS" /tmp/st-read.txt | tail -20
+      echo "--- strace gs write"; strace -f -e trace=%file,%desc -o /tmp/st-write.txt gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=probe-safer.pdf testpage.ps; grep -n "probe-safer\|testpage\|EACCES\|EPERM\|EROFS" /tmp/st-write.txt | tail -20
+      echo "--- strace cat"; strace -e trace=%file -o /tmp/st-cat.txt cat testpage.ps >/dev/null; grep -n testpage /tmp/st-cat.txt
       echo "--- env"; env | sort
       echo "=== PROBE END"
     # testpage.ps sizes itself from the device page, so pin the US Letter
