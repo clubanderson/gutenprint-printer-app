@@ -30,7 +30,7 @@ config:
       gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=/tmp/probe-tmp.pdf testpage.ps && echo GS_TMP_OK
       gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile="$PWD/probe-abs.pdf" testpage.ps && echo GS_ABS_OK
       echo "--- ls -la . /tmp"; ls -la . /tmp
-      echo "--- caps"; grep Cap /proc/self/status; cat /proc/self/uid_map /proc/self/gid_map
+      echo "--- caps"; cat /proc/self/status; cat /proc/self/uid_map /proc/self/gid_map
       echo "--- gs binary"; ls -la /usr/bin/gs; readlink -f /usr/bin/gs; file "$(readlink -f /usr/bin/gs)" || true
       cat testpage.ps > /dev/null && echo CAT_OK
       cp testpage.ps copy.ps && echo CP_OK
@@ -39,9 +39,9 @@ config:
       sh -c ': < testpage.ps' && echo SH_RDONLY_OK
       cp testpage.ps /tmp/testpage.ps && gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=/tmp/o.pdf /tmp/testpage.ps && echo GS_ALL_TMP_OK
       gs -q -dNOSAFER -dBATCH -dNOPAUSE -sDEVICE=nullpage testpage.ps && echo GS_NULL_READ_OK
-      echo "--- strace gs read"; strace -f -e trace=%file,%desc -o /tmp/st-read.txt gs -q -dNOSAFER -dBATCH -dNOPAUSE -sDEVICE=nullpage testpage.ps; grep -n "testpage\|EACCES\|EPERM\|EROFS" /tmp/st-read.txt | tail -20
-      echo "--- strace gs write"; strace -f -e trace=%file,%desc -o /tmp/st-write.txt gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=probe-safer.pdf testpage.ps; grep -n "probe-safer\|testpage\|EACCES\|EPERM\|EROFS" /tmp/st-write.txt | tail -20
-      echo "--- strace cat"; strace -e trace=%file -o /tmp/st-cat.txt cat testpage.ps >/dev/null; grep -n testpage /tmp/st-cat.txt
+      echo "--- strace gs read"; strace -f -e trace=%file,%desc -o /tmp/st-read.txt gs -q -dNOSAFER -dBATCH -dNOPAUSE -sDEVICE=nullpage testpage.ps; tail -n 40 /tmp/st-read.txt
+      echo "--- strace gs write"; strace -f -e trace=%file,%desc -o /tmp/st-write.txt gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=probe-safer.pdf testpage.ps; tail -n 40 /tmp/st-write.txt
+      echo "--- strace cat"; strace -e trace=%file -o /tmp/st-cat.txt cat testpage.ps >/dev/null; tail -n 15 /tmp/st-cat.txt
       echo "--- env"; env | sort
       echo "=== PROBE END"
     # testpage.ps sizes itself from the device page, so pin the US Letter
